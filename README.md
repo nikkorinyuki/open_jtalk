@@ -1,3 +1,5 @@
+open_jtalkのHTS部分を削除し、日本語文を変換する処理のみに変更したものです。
+
 # open_jtalk
 
 [![C/C++ CI](https://github.com/r9y9/open_jtalk/actions/workflows/ccpp.yaml/badge.svg)](https://github.com/r9y9/open_jtalk/actions/workflows/ccpp.yaml)

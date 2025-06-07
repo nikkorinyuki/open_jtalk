@@ -42,12 +42,14 @@
 #define OPEN_JTALK_C
 
 #ifdef __cplusplus
-#define OPEN_JTALK_C_START extern "C" {
-#define OPEN_JTALK_C_END   }
+#define OPEN_JTALK_C_START \
+   extern "C"              \
+   {
+#define OPEN_JTALK_C_END }
 #else
 #define OPEN_JTALK_C_START
 #define OPEN_JTALK_C_END
-#endif                          /* __CPLUSPLUS */
+#endif /* __CPLUSPLUS */
 
 OPEN_JTALK_C_START;
 
@@ -61,7 +63,7 @@ OPEN_JTALK_C_START;
 #include "mecab.h"
 #include "njd.h"
 #include "jpcommon.h"
-#include "HTS_engine.h"
+#include "open_jtalk.h"
 
 /* Sub headers */
 #include "text2mecab.h"
@@ -76,98 +78,38 @@ OPEN_JTALK_C_START;
 
 #define MAXBUFLEN 1024
 
-typedef struct _Open_JTalk {
+typedef struct _Open_JTalk
+{
    Mecab mecab;
    NJD njd;
    JPCommon jpcommon;
-   HTS_Engine engine;
 } Open_JTalk;
 
-static void Open_JTalk_initialize(Open_JTalk * open_jtalk)
+static void Open_JTalk_initialize(Open_JTalk *open_jtalk)
 {
    Mecab_initialize(&open_jtalk->mecab);
    NJD_initialize(&open_jtalk->njd);
    JPCommon_initialize(&open_jtalk->jpcommon);
-   HTS_Engine_initialize(&open_jtalk->engine);
 }
 
-static void Open_JTalk_clear(Open_JTalk * open_jtalk)
+static void Open_JTalk_clear(Open_JTalk *open_jtalk)
 {
    Mecab_clear(&open_jtalk->mecab);
    NJD_clear(&open_jtalk->njd);
    JPCommon_clear(&open_jtalk->jpcommon);
-   HTS_Engine_clear(&open_jtalk->engine);
 }
 
-static int Open_JTalk_load(Open_JTalk * open_jtalk, char *dn_mecab, char *fn_voice)
+static int Open_JTalk_load(Open_JTalk *open_jtalk, char *dn_mecab)
 {
-   if (Mecab_load(&open_jtalk->mecab, dn_mecab) != TRUE) {
-      Open_JTalk_clear(open_jtalk);
-      return 0;
-   }
-   if (HTS_Engine_load(&open_jtalk->engine, &fn_voice, 1) != TRUE) {
-      Open_JTalk_clear(open_jtalk);
-      return 0;
-   }
-   if (strcmp(HTS_Engine_get_fullcontext_label_format(&open_jtalk->engine), "HTS_TTS_JPN") != 0) {
+   if (Mecab_load(&open_jtalk->mecab, dn_mecab) != TRUE)
+   {
       Open_JTalk_clear(open_jtalk);
       return 0;
    }
    return 1;
 }
 
-static void Open_JTalk_set_sampling_frequency(Open_JTalk * open_jtalk, size_t i)
-{
-   HTS_Engine_set_sampling_frequency(&open_jtalk->engine, i);
-}
-
-static void Open_JTalk_set_fperiod(Open_JTalk * open_jtalk, size_t i)
-{
-   HTS_Engine_set_fperiod(&open_jtalk->engine, i);
-}
-
-static void Open_JTalk_set_alpha(Open_JTalk * open_jtalk, double f)
-{
-   HTS_Engine_set_alpha(&open_jtalk->engine, f);
-}
-
-static void Open_JTalk_set_beta(Open_JTalk * open_jtalk, double f)
-{
-   HTS_Engine_set_beta(&open_jtalk->engine, f);
-}
-
-static void Open_JTalk_set_speed(Open_JTalk * open_jtalk, double f)
-{
-   HTS_Engine_set_speed(&open_jtalk->engine, f);
-}
-
-static void Open_JTalk_add_half_tone(Open_JTalk * open_jtalk, double f)
-{
-   HTS_Engine_add_half_tone(&open_jtalk->engine, f);
-}
-
-static void Open_JTalk_set_msd_threshold(Open_JTalk * open_jtalk, size_t i, double f)
-{
-   HTS_Engine_set_msd_threshold(&open_jtalk->engine, i, f);
-}
-
-static void Open_JTalk_set_gv_weight(Open_JTalk * open_jtalk, size_t i, double f)
-{
-   HTS_Engine_set_gv_weight(&open_jtalk->engine, i, f);
-}
-
-static void Open_JTalk_set_volume(Open_JTalk * open_jtalk, double f)
-{
-   HTS_Engine_set_volume(&open_jtalk->engine, f);
-}
-
-static void Open_JTalk_set_audio_buff_size(Open_JTalk * open_jtalk, size_t i)
-{
-   HTS_Engine_set_audio_buff_size(&open_jtalk->engine, i);
-}
-
-static int Open_JTalk_synthesis(Open_JTalk * open_jtalk, const char *txt, FILE * wavfp,
-                                FILE * logfp)
+static int Open_JTalk_synthesis(Open_JTalk *open_jtalk, const char *txt, FILE *outfp, FILE *logfp)
 {
    int result = 0;
    char buff[MAXBUFLEN];
@@ -184,28 +126,68 @@ static int Open_JTalk_synthesis(Open_JTalk * open_jtalk, const char *txt, FILE *
    njd_set_long_vowel(&open_jtalk->njd);
    njd2jpcommon(&open_jtalk->jpcommon, &open_jtalk->njd);
    JPCommon_make_label(&open_jtalk->jpcommon);
-   if (JPCommon_get_label_size(&open_jtalk->jpcommon) > 2) {
-      if (HTS_Engine_synthesize_from_strings
-          (&open_jtalk->engine, JPCommon_get_label_feature(&open_jtalk->jpcommon),
-           JPCommon_get_label_size(&open_jtalk->jpcommon)) == TRUE)
-         result = 1;
-      if (wavfp != NULL)
-         HTS_Engine_save_riff(&open_jtalk->engine, wavfp);
-      if (logfp != NULL) {
-         fprintf(logfp, "[Text analysis result]\n");
-         NJD_fprint(&open_jtalk->njd, logfp);
-         fprintf(logfp, "\n[Output label]\n");
-         HTS_Engine_save_label(&open_jtalk->engine, logfp);
-         fprintf(logfp, "\n");
-         HTS_Engine_save_information(&open_jtalk->engine, logfp);
-      }
-      HTS_Engine_refresh(&open_jtalk->engine);
-   }
+
    JPCommon_refresh(&open_jtalk->jpcommon);
    NJD_refresh(&open_jtalk->njd);
    Mecab_refresh(&open_jtalk->mecab);
 
    return result;
+}
+
+int count_nodes(NJDNode *head)
+{
+   int count = 0;
+   NJDNode *node = head;
+   while (node != NULL)
+   {
+      count++;
+      node = node->next;
+   }
+   return count;
+}
+
+Label node2feature(NJDNode *node);
+
+static Label *njd2feature(NJD *njd)
+{
+   int node_count = count_nodes(njd->head);
+   Label *labels = (Label *)malloc(sizeof(Label) * node_count); // 確保
+
+   if (labels == NULL)
+   {
+      perror("malloc failed");
+      return NULL;
+   }
+
+   NJDNode *node = njd->head;
+   int i = 0;
+   while (node != NULL)
+   {
+      labels[i++] = node2feature(node); // node -> Label の変換
+      node = node->next;
+   }
+
+   return labels;
+}
+
+Label node2feature(NJDNode *node)
+{
+   Label feature;
+   feature.string = (char *)NJDNode_get_string(node);
+   feature.pos = (char *)NJDNode_get_pos(node);
+   feature.pos_group1 = (char *)NJDNode_get_pos_group1(node);
+   feature.pos_group2 = (char *)NJDNode_get_pos_group2(node);
+   feature.pos_group3 = (char *)NJDNode_get_pos_group3(node);
+   feature.ctype = (char *)NJDNode_get_ctype(node);
+   feature.cform = (char *)NJDNode_get_cform(node);
+   feature.orig = (char *)NJDNode_get_orig(node);
+   feature.read = (char *)NJDNode_get_read(node);
+   feature.pron = (char *)NJDNode_get_pron(node);
+   feature.acc = NJDNode_get_acc(node);
+   feature.mora_size = NJDNode_get_mora_size(node);
+   feature.chain_rule = (char *)NJDNode_get_chain_rule(node);
+   feature.chain_flag = NJDNode_get_chain_flag(node);
+   return feature;
 }
 
 static void usage()
@@ -214,8 +196,6 @@ static void usage()
    fprintf(stderr, "Version 1.10 (http://open-jtalk.sourceforge.net/)\n");
    fprintf(stderr, "Copyright (C) 2008-2016 Nagoya Institute of Technology\n");
    fprintf(stderr, "All rights reserved.\n");
-   fprintf(stderr, "\n");
-   fprintf(stderr, "%s", HTS_COPYRIGHT);
    fprintf(stderr, "\n");
    fprintf(stderr, "Yet Another Part-of-Speech and Morphological Analyzer \"Mecab\"\n");
    fprintf(stderr, "Version 0.996 (http://mecab.sourceforge.net/)\n");
@@ -242,33 +222,9 @@ static void usage()
    fprintf(stderr,
            "    -x  dir        : dictionary directory                                    [  N/A]\n");
    fprintf(stderr,
-           "    -m  htsvoice   : HTS voice files                                         [  N/A]\n");
-   fprintf(stderr,
-           "    -ow s          : filename of output wav audio (generated speech)         [  N/A]\n");
+           "    -oo s          : filename of output wav audio (generated speech)         [  N/A]\n"); // TODO
    fprintf(stderr,
            "    -ot s          : filename of output trace information                    [  N/A]\n");
-   fprintf(stderr,
-           "    -s  i          : sampling frequency                                      [ auto][   1--    ]\n");
-   fprintf(stderr,
-           "    -p  i          : frame period (point)                                    [ auto][   1--    ]\n");
-   fprintf(stderr,
-           "    -a  f          : all-pass constant                                       [ auto][ 0.0-- 1.0]\n");
-   fprintf(stderr,
-           "    -b  f          : postfiltering coefficient                               [  0.0][ 0.0-- 1.0]\n");
-   fprintf(stderr,
-           "    -r  f          : speech speed rate                                       [  1.0][ 0.0--    ]\n");
-   fprintf(stderr,
-           "    -fm f          : additional half-tone                                    [  0.0][    --    ]\n");
-   fprintf(stderr,
-           "    -u  f          : voiced/unvoiced threshold                               [  0.5][ 0.0-- 1.0]\n");
-   fprintf(stderr,
-           "    -jm f          : weight of GV for spectrum                               [  1.0][ 0.0--    ]\n");
-   fprintf(stderr,
-           "    -jf f          : weight of GV for log F0                                 [  1.0][ 0.0--    ]\n");
-   fprintf(stderr,
-           "    -g  f          : volume (dB)                                             [  0.0][    --    ]\n");
-   fprintf(stderr,
-           "    -z  i          : audio buffer size (if i==0, turn off)                   [    0][   0--    ]\n");
    fprintf(stderr, "  infile:\n");
    fprintf(stderr,
            "    text file                                                                [stdin]\n");
@@ -290,15 +246,12 @@ int main(int argc, char **argv)
    /* dictionary directory */
    char *dn_dict = NULL;
 
-   /* HTS voice */
-   char *fn_voice = NULL;
-
    /* input text file name */
    FILE *txtfp = stdin;
    char *txtfn = NULL;
 
    /* output file pointers */
-   FILE *wavfp = NULL;
+   FILE *outfp = NULL;
    FILE *logfp = NULL;
 
    /* output usage */
@@ -309,42 +262,39 @@ int main(int argc, char **argv)
    Open_JTalk_initialize(&open_jtalk);
 
    /* get dictionary directory */
-   for (i = 0; i < argc; i++) {
+   for (i = 0; i < argc; i++)
+   {
       if (argv[i][0] == '-' && argv[i][1] == 'x')
          dn_dict = argv[++i];
       if (argv[i][0] == '-' && argv[i][1] == 'h')
          usage();
    }
-   if (dn_dict == NULL) {
+   if (dn_dict == NULL)
+   {
       fprintf(stderr, "Error: Dictionary must be specified.\n");
       exit(1);
    }
 
-   /* get HTS voice file name */
-   for (i = 0; i < argc; i++) {
-      if (argv[i][0] == '-' && argv[i][1] == 'm')
-         fn_voice = argv[++i];
-   }
-   if (fn_voice == NULL) {
-      fprintf(stderr, "Error: HTS voice must be specified.\n");
-      exit(1);
-   }
-
-   /* load dictionary and HTS voice */
-   if (Open_JTalk_load(&open_jtalk, dn_dict, fn_voice) != TRUE) {
-      fprintf(stderr, "Error: Dictionary or HTS voice cannot be loaded.\n");
+   /* load dictionary */
+   if (Open_JTalk_load(&open_jtalk, dn_dict) != TRUE)
+   {
+      fprintf(stderr, "Error: Dictionary cannot be loaded.\n");
       Open_JTalk_clear(&open_jtalk);
       exit(1);
    }
 
    /* get options */
-   while (--argc) {
-      if (**++argv == '-') {
-         switch (*(*argv + 1)) {
+   while (--argc)
+   {
+      if (**++argv == '-')
+      {
+         switch (*(*argv + 1))
+         {
          case 'o':
-            switch (*(*argv + 2)) {
-            case 'w':
-               wavfp = fopen(*++argv, "wb");
+            switch (*(*argv + 2))
+            {
+            case 'o':
+               outfp = fopen(*++argv, "wb");
                break;
             case 't':
                logfp = fopen(*++argv, "wt");
@@ -359,76 +309,16 @@ int main(int argc, char **argv)
             usage();
             break;
          case 'x':
-            argv++;             /* dictionary was already loaded */
-            --argc;
-            break;
-         case 'm':
-            argv++;             /* HTS voice was already loaded */
-            --argc;
-            break;
-         case 's':
-            Open_JTalk_set_sampling_frequency(&open_jtalk, (size_t) atoi(*++argv));
-            --argc;
-            break;
-         case 'p':
-            Open_JTalk_set_fperiod(&open_jtalk, (size_t) atoi(*++argv));
-            --argc;
-            break;
-         case 'a':
-            Open_JTalk_set_alpha(&open_jtalk, atof(*++argv));
-            --argc;
-            break;
-         case 'b':
-            Open_JTalk_set_beta(&open_jtalk, atof(*++argv));
-            --argc;
-            break;
-         case 'r':
-            Open_JTalk_set_speed(&open_jtalk, atof(*++argv));
-            --argc;
-            break;
-         case 'f':
-            switch (*(*argv + 2)) {
-            case 'm':
-               Open_JTalk_add_half_tone(&open_jtalk, atof(*++argv));
-               break;
-            default:
-               fprintf(stderr, "Error: Invalid option '-f%c'.\n", *(*argv + 2));
-               exit(1);
-            }
-            --argc;
-            break;
-         case 'u':
-            Open_JTalk_set_msd_threshold(&open_jtalk, 1, atof(*++argv));
-            --argc;
-            break;
-         case 'j':
-            switch (*(*argv + 2)) {
-            case 'm':
-               Open_JTalk_set_gv_weight(&open_jtalk, 0, atof(*++argv));
-               break;
-            case 'f':
-            case 'p':
-               Open_JTalk_set_gv_weight(&open_jtalk, 1, atof(*++argv));
-               break;
-            default:
-               fprintf(stderr, "Error: Invalid option '-j%c'.\n", *(*argv + 2));
-               exit(1);
-            }
-            --argc;
-            break;
-         case 'g':
-            Open_JTalk_set_volume(&open_jtalk, atof(*++argv));
-            --argc;
-            break;
-         case 'z':
-            Open_JTalk_set_audio_buff_size(&open_jtalk, (size_t) atoi(*++argv));
+            argv++; /* dictionary was already loaded */
             --argc;
             break;
          default:
             fprintf(stderr, "Error: Invalid option '-%c'.\n", *(*argv + 1));
             exit(1);
          }
-      } else {
+      }
+      else
+      {
          txtfn = *argv;
          txtfp = fopen(txtfn, "rt");
       }
@@ -436,7 +326,8 @@ int main(int argc, char **argv)
 
    /* synthesize */
    fgets(buff, MAXBUFLEN - 1, txtfp);
-   if (Open_JTalk_synthesis(&open_jtalk, buff, wavfp, logfp) != TRUE) {
+   if (Open_JTalk_synthesis(&open_jtalk, buff, outfp, logfp) != TRUE)
+   {
       fprintf(stderr, "Error: waveform cannot be synthesized.\n");
       Open_JTalk_clear(&open_jtalk);
       exit(1);
@@ -448,8 +339,6 @@ int main(int argc, char **argv)
    /* close files */
    if (txtfn != NULL)
       fclose(txtfp);
-   if (wavfp != NULL)
-      fclose(wavfp);
    if (logfp != NULL)
       fclose(logfp);
 
@@ -457,4 +346,4 @@ int main(int argc, char **argv)
 }
 
 OPEN_JTALK_C_END;
-#endif                          /* !OPEN_JTALK_C */
+#endif /* !OPEN_JTALK_C */

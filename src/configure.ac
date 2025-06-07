@@ -209,40 +209,6 @@ case "$host_os" in
 esac
 fi
 
-# Define HTS_ENGINE_HEADER
-AC_ARG_WITH(hts-engine-header-path,
-            AS_HELP_STRING([--with-hts-engine-header-path],[specify the hts_engine_API header path]),
-            [hts_engine_header_path=$withval],
-            [hts_engine_header_path='/usr/local/include'])
-if test ! -f "${hts_engine_header_path}/HTS_engine.h"; then
-   AC_MSG_ERROR(Cannot find HTS_engine.h)
-fi
-AC_MSG_CHECKING(for HTS_engine.h)
-AC_MSG_RESULT($hts_engine_header_path/HTS_engine.h)
-AC_SUBST(HTS_ENGINE_HEADER)
-HTS_ENGINE_HEADER=${hts_engine_header_path}/HTS_engine.h
-
-# Define HTS_ENGINE_HEADER_DIR
-AC_SUBST(HTS_ENGINE_HEADER_DIR)
-HTS_ENGINE_HEADER_DIR=${hts_engine_header_path}
-
-# Define HTS_ENGINE_LIBRARY
-AC_ARG_WITH(hts-engine-library-path,
-            AS_HELP_STRING([--with-hts-engine-library-path],[specify the hts_engine_API library path]),
-            [hts_engine_library_path=$withval],
-            [hts_engine_library_path='/usr/local/lib'])
-if test ! -f "${hts_engine_library_path}/libHTSEngine.a"; then
-   AC_MSG_ERROR(Cannot find libHTSEngine.a)
-fi
-AC_MSG_CHECKING(for libHTSEngine.a)
-AC_MSG_RESULT($hts_engine_library_path/libHTSEngine.a)
-AC_SUBST(HTS_ENGINE_LIBRARY)
-HTS_ENGINE_LIBRARY=${hts_engine_library_path}/libHTSEngine.a
-
-# Define HTS_ENGINE_LIBRARY_DIR
-AC_SUBST(HTS_ENGINE_LIBRARY_DIR)
-HTS_ENGINE_LIBRARY_DIR=${hts_engine_library_path}
-
 # Check for windows audio devices
 case "$host_os" in
    *win32* | *wince* | *cygwin* | *mingw* )
