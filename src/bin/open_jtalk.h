@@ -1,17 +1,17 @@
 typedef struct Label
 {
-    char *string;
-    char *pos;
-    char *pos_group1;
-    char *pos_group2;
-    char *pos_group3;
-    char *ctype;
-    char *cform;
-    char *orig;
-    char *read;
-    char *pron;
+    std::string string;
+    std::string pos;
+    std::string pos_group1;
+    std::string pos_group2;
+    std::string pos_group3;
+    std::string ctype;
+    std::string cform;
+    std::string orig;
+    std::string read;
+    std::string pron;
     int acc;
     int mora_size;
-    char *chain_rule;
+    std::string chain_rule;
     int chain_flag;
 } Label;

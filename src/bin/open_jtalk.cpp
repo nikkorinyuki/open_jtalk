@@ -38,26 +38,13 @@
 /* POSSIBILITY OF SUCH DAMAGE.                                       */
 /* ----------------------------------------------------------------- */
 
-#ifndef OPEN_JTALK_C
-#define OPEN_JTALK_C
-
-#ifdef __cplusplus
-#define OPEN_JTALK_C_START \
-   extern "C"              \
-   {
-#define OPEN_JTALK_C_END }
-#else
-#define OPEN_JTALK_C_START
-#define OPEN_JTALK_C_END
-#endif /* __CPLUSPLUS */
-
-OPEN_JTALK_C_START;
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
 #include <math.h>
+#include <vector>
+#include <emscripten/bind.h>
 
 /* Main headers */
 #include "mecab.h"
@@ -109,9 +96,10 @@ static int Open_JTalk_load(Open_JTalk *open_jtalk, char *dn_mecab)
    return 1;
 }
 
-static int Open_JTalk_synthesis(Open_JTalk *open_jtalk, const char *txt, FILE *outfp, FILE *logfp)
+static std::vector<Label> njd2feature(NJD *njd);
+
+static std::vector<Label> Open_JTalk_run(Open_JTalk *open_jtalk, const char *txt)
 {
-   int result = 0;
    char buff[MAXBUFLEN];
 
    text2mecab(buff, txt);
@@ -127,6 +115,8 @@ static int Open_JTalk_synthesis(Open_JTalk *open_jtalk, const char *txt, FILE *o
    njd2jpcommon(&open_jtalk->jpcommon, &open_jtalk->njd);
    JPCommon_make_label(&open_jtalk->jpcommon);
 
+   std::vector<Label> result = njd2feature(&open_jtalk->njd);
+
    JPCommon_refresh(&open_jtalk->jpcommon);
    NJD_refresh(&open_jtalk->njd);
    Mecab_refresh(&open_jtalk->mecab);
@@ -134,36 +124,55 @@ static int Open_JTalk_synthesis(Open_JTalk *open_jtalk, const char *txt, FILE *o
    return result;
 }
 
-int count_nodes(NJDNode *head)
+static std::vector<Label> Open_JTalk_emscripten_run(const std::string &txt, const std::string &dictionary)
 {
-   int count = 0;
-   NJDNode *node = head;
-   while (node != NULL)
+   Open_JTalk open_jtalk;
+   Open_JTalk_initialize(&open_jtalk);
+
+   if (!Open_JTalk_load(&open_jtalk, (char *)dictionary.c_str()))
    {
-      count++;
-      node = node->next;
+      Open_JTalk_clear(&open_jtalk);
+      std::__throw_runtime_error("Error: Dictionary cannot be loaded.");
    }
-   return count;
+
+   std::vector<Label> result = Open_JTalk_run(&open_jtalk, txt.c_str());
+
+   Open_JTalk_clear(&open_jtalk);
+   return result;
+}
+
+EMSCRIPTEN_BINDINGS(my_module)
+{
+   emscripten::value_object<Label>("Label")
+       .field("string", &Label::string)
+       .field("pos", &Label::pos)
+       .field("pos_group1", &Label::pos_group1)
+       .field("pos_group2", &Label::pos_group2)
+       .field("pos_group3", &Label::pos_group3)
+       .field("ctype", &Label::ctype)
+       .field("cform", &Label::cform)
+       .field("orig", &Label::orig)
+       .field("read", &Label::read)
+       .field("pron", &Label::pron)
+       .field("acc", &Label::acc)
+       .field("mora_size", &Label::mora_size)
+       .field("chain_rule", &Label::chain_rule)
+       .field("chain_flag", &Label::chain_flag);
+
+   emscripten::register_vector<Label>("VectorLabel");
+
+   emscripten::function("Open_JTalk", &Open_JTalk_emscripten_run);
 }
 
 Label node2feature(NJDNode *node);
 
-static Label *njd2feature(NJD *njd)
+static std::vector<Label> njd2feature(NJD *njd)
 {
-   int node_count = count_nodes(njd->head);
-   Label *labels = (Label *)malloc(sizeof(Label) * node_count); // 確保
-
-   if (labels == NULL)
-   {
-      perror("malloc failed");
-      return NULL;
-   }
-
+   std::vector<Label> labels;
    NJDNode *node = njd->head;
-   int i = 0;
    while (node != NULL)
    {
-      labels[i++] = node2feature(node); // node -> Label の変換
+      labels.push_back(node2feature(node));
       node = node->next;
    }
 
@@ -326,7 +335,8 @@ int main(int argc, char **argv)
 
    /* synthesize */
    fgets(buff, MAXBUFLEN - 1, txtfp);
-   if (Open_JTalk_synthesis(&open_jtalk, buff, outfp, logfp) != TRUE)
+   std::vector<Label> result = Open_JTalk_run(&open_jtalk, buff);
+   if (result.empty())
    {
       fprintf(stderr, "Error: waveform cannot be synthesized.\n");
       Open_JTalk_clear(&open_jtalk);
@@ -344,6 +354,3 @@ int main(int argc, char **argv)
 
    return 0;
 }
-
-OPEN_JTALK_C_END;
-#endif /* !OPEN_JTALK_C */
