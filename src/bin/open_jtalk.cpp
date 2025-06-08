@@ -112,12 +112,9 @@ static std::vector<Label> Open_JTalk_run(Open_JTalk *open_jtalk, const char *txt
    njd_set_accent_type(&open_jtalk->njd);
    njd_set_unvoiced_vowel(&open_jtalk->njd);
    njd_set_long_vowel(&open_jtalk->njd);
-   njd2jpcommon(&open_jtalk->jpcommon, &open_jtalk->njd);
-   JPCommon_make_label(&open_jtalk->jpcommon);
 
    std::vector<Label> result = njd2feature(&open_jtalk->njd);
 
-   JPCommon_refresh(&open_jtalk->jpcommon);
    NJD_refresh(&open_jtalk->njd);
    Mecab_refresh(&open_jtalk->mecab);
 
