@@ -1,4 +1,5 @@
-open_jtalkのHTS部分を削除し、日本語文を変換する処理のみに変更したものです。
+[VOICEVOX/pyopenjtalk](https://github.com/VOICEVOX/pyopenjtalk)を参考にした、通常のopenJTalkのHTS部分を削除し、日本語文を変換する処理のみに変更したものです。
+[nikkorinyuki/wasm_open_jtalk](https://github.com/nikkorinyuki/wasm_open_jtalk)に使用するためのリポジトリです。
 
 # open_jtalk
 
