@@ -98,6 +98,32 @@ static int Open_JTalk_load(Open_JTalk *open_jtalk, char *dn_mecab)
 
 static std::vector<Label> njd2feature(NJD *njd);
 
+static void feature2njd(NJD *njd, std::vector<Label> features)
+{
+   for (const auto &feature_node : features)
+   {
+      NJDNode *node = (NJDNode *)calloc(1, sizeof(NJDNode));
+      NJDNode_initialize(node);
+
+      NJDNode_set_string(node, feature_node.string.c_str());
+      NJDNode_set_pos(node, feature_node.pos.c_str());
+      NJDNode_set_pos_group1(node, feature_node.pos_group1.c_str());
+      NJDNode_set_pos_group2(node, feature_node.pos_group2.c_str());
+      NJDNode_set_pos_group3(node, feature_node.pos_group3.c_str());
+      NJDNode_set_ctype(node, feature_node.ctype.c_str());
+      NJDNode_set_cform(node, feature_node.cform.c_str());
+      NJDNode_set_orig(node, feature_node.orig.c_str());
+      NJDNode_set_read(node, feature_node.read.c_str());
+      NJDNode_set_pron(node, feature_node.pron.c_str());
+      NJDNode_set_acc(node, feature_node.acc);
+      NJDNode_set_mora_size(node, feature_node.mora_size);
+      NJDNode_set_chain_rule(node, feature_node.chain_rule.c_str());
+      NJDNode_set_chain_flag(node, feature_node.chain_flag);
+
+      NJD_push_node(njd, node);
+   }
+}
+
 static std::vector<Label> Open_JTalk_run(Open_JTalk *open_jtalk, const char *txt)
 {
    char buff[MAXBUFLEN];
@@ -141,6 +167,28 @@ static std::vector<Label> Open_JTalk_emscripten_run(const std::string &txt, cons
    return result;
 }
 
+static std::vector<std::string> make_label(const std::vector<Label> &features)
+{
+   Open_JTalk open_jtalk;
+   Open_JTalk_initialize(&open_jtalk);
+   feature2njd(&open_jtalk.njd, features);
+   njd2jpcommon(&open_jtalk.jpcommon, &open_jtalk.njd);
+   JPCommon_make_label(&open_jtalk.jpcommon);
+   int label_size = JPCommon_get_label_size(&open_jtalk.jpcommon);
+   char **label_feature = JPCommon_get_label_feature(&open_jtalk.jpcommon);
+
+   std::vector<std::string> labels;
+   for (int i = 0; i < label_size; i++)
+   {
+      labels.push_back(label_feature[i]);
+   }
+
+   JPCommon_refresh(&open_jtalk.jpcommon);
+   NJD_refresh(&open_jtalk.njd);
+
+   return labels;
+}
+
 EMSCRIPTEN_BINDINGS(my_module)
 {
    emscripten::value_object<Label>("Label")
@@ -162,6 +210,10 @@ EMSCRIPTEN_BINDINGS(my_module)
    emscripten::register_vector<Label>("VectorLabel");
 
    emscripten::function("Open_JTalk", &Open_JTalk_emscripten_run);
+
+   emscripten::register_vector<std::string>("VectorString");
+
+   emscripten::function("make_label", &make_label);
 }
 
 Label node2feature(NJDNode *node);
